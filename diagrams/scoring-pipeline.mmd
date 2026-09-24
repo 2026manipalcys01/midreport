@@ -1,0 +1,15 @@
+---
+config:
+  flowchart:
+    wrappingWidth: 460
+---
+flowchart TB
+  submit["submitFlag(learner, slug, flag)"] --> check{"sha256(flag)<br/>equals flag_hash?"}
+  check -- "no" --> miss["outcome incorrect<br/>every score column 0"]
+  check -- "yes" --> inputs["Load the inputs from the database<br/>f wrong flags, t seconds taken, H hint cost"]
+  inputs --> rule["scoreSolvedAttempt(B, E, t, f, H)<br/>C = round(0.55 × B)<br/>A = round(0.25 × B × max(0, 1 − 0.25f))<br/>T = round(0.20 × B × clamp(1 − t / 90E))<br/>S = max(round(0.10 × B), C + A + T − H)"]
+  rule --> write["Insert one attempts row and a flag_submit event<br/>outcome, accuracy, time, hints, five score parts"]
+  miss --> write
+  write --> ret["Return the score breakdown"]
+
+  style rule fill:#FDF4EA

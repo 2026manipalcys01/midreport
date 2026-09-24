@@ -1,0 +1,11 @@
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+Hands-on practice is the most effective way to learn web-application security, and Capture-the-Flag (CTF) exercises are the usual way to deliver it. Classroom CTF platforms still give every learner the same fixed sequence of challenges, add game elements such as leaderboards without regard to their documented harms, and show the instructor little beyond a count of solved challenges. This project designs and builds an adaptive, gamified web-security training platform for penetration-testing education. This report covers the work done up to the mid-semester review.
+
+The platform is one Next.js application, built as a modular monolith whose domain logic lives in seven TypeScript workspace packages. Its data sits in a PostgreSQL database of twelve tables, and the intentionally vulnerable lab runs as a separate Docker container on its own network. Two of the six objectives are complete. The lab serves three live challenges from the OWASP Top~10: an insecure direct object reference, a UNION-based SQL injection and a reflected cross-site scripting flaw. Each learner receives a flag derived with HMAC-SHA256, and the platform stores only the SHA-256 hash of that flag. A pure, unit-tested scoring rule weights completion at 55\%, accuracy at 25\% and time at 20\%, subtracts hint costs, and never pays less than 10\% of a challenge's base points. Every submission, right or wrong, is stored as the performance record that the adaptive and machine-learning features will use.
+
+Gamification, adaptive support and the instructor dashboard are partly built, and the effectiveness pilot is planned. Checks run on 23~September~2026 confirmed the scoring tests, the type checks and the end-to-end flag flow. They also showed that the lab container can still open a TCP connection to the database, which this report records as an open issue with a planned fix.
+
+\vspace{0.8em}
+\noindent\textbf{Keywords:} web security education, penetration testing, Capture the Flag, gamification, adaptive learning, learning analytics, OWASP Top~10, HMAC.

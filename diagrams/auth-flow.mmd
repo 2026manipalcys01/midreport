@@ -1,0 +1,13 @@
+flowchart TB
+  req["Request to a page or server action<br/>proxy.ts attaches the Clerk session"] --> gcu["getCurrentUser()<br/>finds or creates the users row"]
+  gcu --> ru["requireUser()"]
+  ru -- "no session" --> signin["Redirect to /sign-in"]
+  ru -- "signed in" --> ron["requireOnboarded()"]
+  ron -- "not onboarded" --> onb["Redirect to /onboarding"]
+  ron -- "onboarded" --> area{"Area?"}
+  area -- "/instructor" --> ri["requireInstructor()"]
+  ri -- "staff role" --> ins["Instructor pages"]
+  ri -- "student role" --> todash["Redirect to /dashboard"]
+  area -- "student area" --> rs["requireStudent()"]
+  rs -- "student role" --> stu["Student pages"]
+  rs -- "staff role" --> toins["Redirect to /instructor"]

@@ -1,0 +1,13 @@
+---
+config:
+  flowchart:
+    rankSpacing: 30
+---
+flowchart LR
+  subgraph K["Knowledge: learner model from attempts and telemetry"]
+    direction LR
+    M["Monitor<br/>attempts, events"] --> A["Analyze<br/>proficiency 0 to 1"] --> P["Plan<br/>next difficulty"] --> E["Execute<br/>task, hints"]
+  end
+  E -- "learner acts again" --> M
+
+  style K fill:#FDF4EA,stroke:#E2B181,stroke-dasharray:5 4;

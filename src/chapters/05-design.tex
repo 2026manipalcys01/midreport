@@ -1,0 +1,171 @@
+\chapter{System architecture and design}
+\label{ch:design}
+
+Three properties shaped the design. The vulnerable targets must never be able to reach the platform, its database or other learners. Scoring must be instant, and the analytics that personalise the path must never sit on that request path. The system also has to run as a pilot for one class on a single campus VM, looked after by a team of three.
+
+\section{Architectural style}
+
+Table~\ref{tab:styles} compares the three styles the team considered.
+
+\begin{table}[!htbp]
+\centering
+\caption{Architectural styles considered.}
+\label{tab:styles}
+\tablefont
+\begin{tabularx}{\linewidth}{@{}P{3.1cm} L L@{}}
+\toprule
+\textbf{Style} & \textbf{What it means here} & \textbf{Verdict} \\
+\midrule
+Unstructured monolith & One Next.js application with no internal boundaries & Rejected: it cannot isolate the vulnerable application or run Python, and its structure decays quickly \\
+Microservices & Authentication, scoring, gamification and challenges as separate services & Rejected: gateways, service discovery and network hops cost more than a team of three can justify \\
+Modular monolith & One deployable application with enforced internal boundaries & Chosen: simple to run, debug and deploy, and still organised \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+A pure monolith cannot meet the safety property or run a Python model in-process, so the design is a hybrid: a modular monolith for the platform core, plus a small, fixed set of separate services where separation is required. The vulnerable lab is separate for security. It has its own Docker network, holds no database credentials and shares no secrets with the platform. The planned Python ML worker is separate because it uses a different runtime and must stay off the request path, so that scoring latency never depends on the model and the model can never change a grade. Everything else, from sign-in to the challenge catalogue, scoring and telemetry, ships inside the one Next.js application.
+
+\section{Layered architecture}
+
+Figure~\ref{fig:architecture} shows the layers. The presentation layer is the Next.js application in \code{apps/web}, with six student routes, seven instructor routes, the onboarding wizard and the in-page lab workspace. It holds routes, components and thin server actions, and no business logic. Each server action checks the user and then calls a use-case in the domain packages, which hold all of the logic. The \code{db} package owns the Drizzle schema and a pooled PostgreSQL client with at most ten connections. Clerk handles identity, while the platform's own database decides what each user may do. The vulnerable lab and the planned ML worker run outside the application.
+
+\diagramfig{architecture}{Layered architecture}{Domain logic lives in workspace packages, the lab runs in its own container, and the dashed ML worker is planned.}{fig:architecture}
+
+\section{Package structure and boundaries}
+
+The domain code is split into seven workspace packages, each owning one concern (Table~\ref{tab:packages}). Every package exports TypeScript source through subpath exports and has no build step. There are no barrel files, so a client component that imports \code{core} never pulls database code into the browser bundle.
+
+\begin{table}[!htbp]
+\centering
+\caption{Workspace packages and what each one owns.}
+\label{tab:packages}
+\tablefont
+\begin{tabularx}{\linewidth}{@{}P{2.2cm} L P{3.6cm}@{}}
+\toprule
+\textbf{Package} & \textbf{Owns} & \textbf{Imports} \\
+\midrule
+\code{constants} & Routes, domain enums as \code{as const} objects with their types and runtime guards, and defaults & Nothing \\
+\code{core} & Domain types, OWASP reference data, difficulty labels, role helpers, the challenge catalogue and temporary sample data & \code{constants}, \code{scoring} \\
+\code{scoring} & The weighted scoring rule, a pure function with unit tests & Nothing \\
+\code{db} & The Drizzle schema, the pooled client, migrations and the seed script & \code{constants}, \code{core}, \code{lab} \\
+\code{lab} & The platform side of the lab contract: gradable slugs, lab URLs, flag hashing and provisioning & \code{constants} \\
+\code{auth} & The data access layer that decides who may do what & \code{constants}, \code{core}, \code{db} \\
+\code{api} & Server use-cases: challenge reads, submissions, onboarding and profile reads & \code{constants}, \code{core}, \code{db}, \code{lab}, \code{scoring} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Dependencies point one way (Figure~\ref{fig:packages}). The website cannot import \code{db}, \code{lab}, \code{drizzle-orm} or \code{postgres}: an ESLint \code{no-restricted-imports} rule rejects them, so data reaches pages only through \code{api} and \code{auth}. The \code{api} package takes plain user IDs and never imports Next.js or Clerk, so its use-cases run from a script or a test. The end-to-end check in Section~\ref{sec:verification} relies on this. A separate \code{ui} package holds the design system.
+
+\diagramfig{packages}{Dependencies between the workspace packages}{Each arrow points from a package to one it imports. The \code{constants} package, imported by every package except \code{scoring} and \code{ui}, is left out for clarity. The crossed edge is the lint rule that keeps the website off the database.}{fig:packages}
+
+\section{Request paths}
+
+The platform follows the Web-Queue-Worker pattern, in which a web front end serves requests and a worker does long-running jobs in the background~\cite{MicrosoftWqw}. Figure~\ref{fig:request-paths} shows the two paths. On the synchronous path the learner submits a flag through a server action. The platform checks the user, hashes the flag, compares it with the stored hash, scores the attempt, writes one \code{attempts} row and one telemetry event, and returns the score breakdown. Nothing on this path calls Python or a queue.
+
+The asynchronous path is planned. The ML worker will read attempts and telemetry events, compute each learner's risk and a recommended next challenge, and write them to the \code{predictions} table, which the application only reads. For a pilot the queue can be the \code{telemetry_events} table plus a scheduled worker run, so no message broker is needed. The contract between the two paths is the database: the application writes events and reads predictions.
+
+\diagramfig[0.6\textheight]{request-paths}{The two request paths}{Scoring runs while the learner waits. The ML worker runs in the background and never writes to \code{attempts}.}{fig:request-paths}
+
+\section{Database design}
+\label{sec:database}
+
+The platform stores everything in one PostgreSQL 16 database of 12 tables and 8 enumerated types, defined in a single Drizzle schema file and created by Drizzle migrations. Figures~\ref{fig:database-core}, \ref{fig:database-content} and~\ref{fig:database-learner} show the tables in three groups, and Table~\ref{tab:tables} lists what each table holds and which code writes it.
+
+\diagramfig[0.8\textheight]{database-core}{Grading tables}{A learner opens an instance of a challenge, and every flag submitted against that instance becomes one row in \code{attempts}.}{fig:database-core}
+
+\diagramfig[0.52\textheight]{database-content}{Challenge content tables}{Instructions, hints and resources are ordered child tables of \code{challenges}.}{fig:database-content}
+
+\diagramfig[0.62\textheight]{database-learner}{Learner data tables}{\code{telemetry_events} also links to the challenge and the instance, which the figure omits.}{fig:database-learner}
+
+\begin{table}[!htbp]
+\centering
+\caption{The twelve tables.}
+\label{tab:tables}
+\tablefont
+\begin{tabularx}{\linewidth}{@{}P{4.5cm} L P{3.0cm}@{}}
+\toprule
+\textbf{Table} & \textbf{Holds} & \textbf{Written by} \\
+\midrule
+\code{users} & One row per Clerk account, with role, cohort, experience level, consent and onboarding time & The DAL on first visit, and onboarding \\
+\code{user_focus_areas} & The OWASP categories a student picked during onboarding & Onboarding \\
+\code{challenges} & The catalogue: slug, OWASP category, difficulty, base points and time estimate & Seed script \\
+\code{challenge_instructions} & Ordered steps for each challenge & Seed script \\
+\code{challenge_hints} & The four-tier hint ladder with its point costs & Seed script \\
+\code{challenge_resources} & Learning resources for each challenge & Seed script \\
+\code{challenge_instances} & A learner's lab instance: seed, flag hash and status & Launch and submit actions \\
+\code{attempts} & Every flag submission with outcome, accuracy, time, hints and five score parts & Submit action \\
+\code{telemetry_events} & The append-only event log & Server actions \\
+\code{predictions} & At-risk score, risk level and recommended challenge for each learner & Planned ML worker \\
+\code{achievements} & Achievement definitions & Not yet written \\
+\code{learner_achievements} & Each learner's progress towards each achievement & Not yet written \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The schema follows a few rules. It is normalised: hints, instructions and resources are tables of their own with a \code{position} column for ordering, so no JSON arrays hang off \code{challenges}. The one JSON column is \code{telemetry_events.payload}, of type \code{jsonb}, because an event is a polymorphic envelope: a \code{hint_unlock} event and a \code{flag_submit} event share almost no fields. The envelope itself (learner, challenge, instance, type and timestamps) stays in ordinary columns. Every primary key is a random UUID except \code{telemetry_events.id}, a \code{bigserial}, because insertion order matters more than unguessability in an append-only log. Deleting a user cascades to that user's instances, attempts and events.
+
+Table~\ref{tab:enums} lists the eight enumerated types. Each one is declared once in the \code{constants} package, which also gives the TypeScript type and a runtime guard, so the database and the code cannot disagree about the allowed values.
+
+\begin{table}[!htbp]
+\centering
+\caption{Enumerated types in the schema.}
+\label{tab:enums}
+\tablefont
+\begin{tabularx}{\linewidth}{@{}P{3.8cm} L@{}}
+\toprule
+\textbf{Type} & \textbf{Values} \\
+\midrule
+\code{user_role} & student, instructor, admin \\
+\code{experience_level} & new, some, experienced \\
+\code{owasp_category} & A01 to A10 \\
+\code{hint_tier} & concept, direction, technical, guidance \\
+\code{resource_kind} & reference, walkthrough, video, spec \\
+\code{instance_status} & available, in\_progress, solved, expired \\
+\code{attempt_outcome} & solved, incorrect, partial, error \\
+\code{risk_level} & low, elevated, high \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The \code{attempts} table is the performance record. It keeps all five score parts for every submission, right or wrong, and it is the data the ML worker will train on. The \code{predictions}, \code{achievements} and \code{learner_achievements} tables are migrated but not yet written, so the features that need them can be added without a schema change.
+
+\section{Authentication and authorisation}
+
+Clerk handles identity: the sign-in and sign-up pages, sessions and passwords. Authorisation stays in the platform's own database, where the \code{users.role} column decides what a user may do. No claim in the Clerk session is trusted for this. In Next.js 16 the old middleware file is named \code{proxy.ts}, and here it only attaches the Clerk session to each request and enforces nothing.
+
+The checks live in the data access layer (DAL) in \code{packages/auth}, shown in Figure~\ref{fig:auth-flow}. The first call, \code{getCurrentUser()}, maps the Clerk user to a \code{users} row and creates the row on the first visit, with an upsert that is safe when two first requests race. Then \code{requireUser()} redirects a visitor without a session to the sign-in page, and \code{requireOnboarded()} sends a new account to the onboarding wizard. Finally \code{requireInstructor()} and \code{requireStudent()} send each role to its own area. Each route group's layout calls these functions, and every server action calls them again, because a check in a layout does not protect an action that can be called directly. Each function is wrapped in React's \code{cache()}, so repeated checks in one request cost one database query.
+
+\diagramfig[0.7\textheight]{auth-flow}{Authorisation in the data access layer}{Each check decides where a request may go. Role decisions read \code{users.role} from the database.}{fig:auth-flow}
+
+\section{Flag lifecycle}
+\label{sec:flag-lifecycle}
+
+Figure~\ref{fig:flag-lifecycle} shows the life of a flag. When a learner launches a challenge, the platform generates a seed of nine random bytes, written as 18 hexadecimal characters, and sends the challenge slug and the seed to the lab's internal provisioning endpoint. The lab derives the flag with HMAC~\cite{Krawczyk1997hmac} over SHA-256~\cite{Nist2015shs}, keyed with a secret that only the lab holds:
+\begin{equation}
+\label{eq:flag}
+\mathit{flag} = P\,\{\, h_{16}\big(\mathrm{HMAC}_{\mathrm{SHA256}}(K_{\mathrm{lab}},\ \mathit{slug}\,{:}\,\mathit{seed})\big) \,\}
+\end{equation}
+Here $P$ is the challenge prefix (\code{NORTHWIND}, \code{MERIDIAN} or \code{HARBOR}), $K_{\mathrm{lab}}$ is \code{LAB_SECRET}, and $h_{16}$ keeps the first 16 hexadecimal digits of the digest. The lab returns only the SHA-256 hash of the flag. The platform stores that hash with the seed and never sees the flag itself. The steps are:
+
+\begin{enumerate}[leftmargin=2em]
+\item The learner launches a challenge instance.
+\item The platform generates a random seed and sends the slug and the seed to the lab.
+\item The lab derives the flag with Equation~\eqref{eq:flag} and returns only its SHA-256 hash.
+\item The platform stores the seed and the hash in \code{challenge_instances}, and gives the learner the lab URL with the seed.
+\item On submission, the platform hashes the trimmed flag and compares it with the stored hash.
+\item If the hashes match, the attempt is scored. Either way, the attempt is logged.
+\end{enumerate}
+
+Each flag belongs to one learner's instance, so a flag copied from a classmate fails. Because the flag is a fixed function of the secret, the slug and the seed, the lab stores nothing and can derive the same flag on every request. The platform never holds \code{LAB_SECRET}. A leaked database would reveal only hashes of 64-bit tokens, which are impractical to reverse by brute force.
+
+\diagramfig[0.72\textheight]{flag-lifecycle}{Flag lifecycle}{The platform stores and compares only \code{sha256(flag)}, and the secret never leaves the lab.}{fig:flag-lifecycle}
+
+\section{Network isolation and deployment}
+\label{sec:deployment}
+
+Docker Compose runs the database on a network called \code{platform} and the lab on a separate network called \code{labnet} (Figure~\ref{fig:deployment}). In the pilot deployment the web application joins both networks: it queries PostgreSQL and calls the lab's provisioning endpoint. During development it runs on the host instead. The learner's browser loads the lab from its public address, \code{LAB_PUBLIC_URL}, inside a sandboxed iframe, while the platform reaches it at \code{LAB_INTERNAL_URL}. The lab must stay on a different origin from the platform, so that an XSS payload cannot read the platform's session cookie (Section~\ref{sec:safeguards}).
+
+Docker gives the lab no DNS entry for the database, so a lookup of the host name \code{db} from inside the lab fails. Verification found that a TCP connection to the database container's IP address still opens, and so does one to the database port published on the host. Section~\ref{sec:open-issues} describes the issue and the planned fix.
+
+\diagramfig[0.5\textheight]{deployment}{Deployment and network isolation}{All containers run on one campus VM under Docker Compose, and the web application joins both networks in the pilot deployment. The red edges are the two probes from the lab towards the database.}{fig:deployment}

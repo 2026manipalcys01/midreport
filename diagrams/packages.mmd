@@ -1,0 +1,18 @@
+flowchart TB
+  web["apps/web<br/>routes, components, server actions"]
+  api["api<br/>use-cases"]
+  auth["auth<br/>Clerk DAL"]
+  ui["ui<br/>design system"]
+  db["db<br/>schema, client, seed"]
+  lab["lab<br/>vuln-lab client"]
+  core["core<br/>types, OWASP data, catalogue"]
+  scoring["scoring<br/>pure rule, no imports"]
+
+  web --> api & auth & ui & core & scoring
+  api --> db & lab & scoring & core
+  auth --> db & core
+  db --> core & lab
+  core --> scoring
+  web -. "blocked by lint rule" .-x db
+
+  linkStyle 14 stroke:#B8473F,color:#B8473F

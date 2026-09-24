@@ -1,0 +1,128 @@
+\chapter{Proposed modules}
+\label{ch:modules}
+
+The platform is divided into six modules. Each one realises one or more objectives (Table~\ref{tab:modules}), and Figure~\ref{fig:modules} shows how they connect through the performance record. Three modules are built, two are partly built and one is planned.
+
+\begin{table}[!htbp]
+\centering
+\caption{Modules, the objectives they realise, and their status.}
+\label{tab:modules}
+\tablefont
+\begin{tabularx}{\linewidth}{@{}P{4.1cm} P{1.8cm} P{2.0cm} L@{}}
+\toprule
+\textbf{Module} & \textbf{Realises} & \textbf{Status} & \textbf{Main code} \\
+\midrule
+M1 Authentication and onboarding & All & Built & \code{packages/auth}, the onboarding use-case and wizard \\
+M2 Vulnerable lab & O1 & Built & \code{services/vuln-lab}, \code{packages/lab} \\
+M3 Challenges and scoring & O1, O3, O4 & Built & \code{packages/api}, \code{packages/scoring} \\
+M4 Gamification & O2 & Partly built & Achievement tables, dashboard and achievement pages \\
+M5 Adaptive engine & O4 & Planned & Event log and \code{predictions} table, ML worker to come \\
+M6 Instructor analytics & O5 & Partly built & Seven pages under \code{/instructor} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\diagramfig[0.55\textheight]{modules}{Module diagram}{Every attempt that M3 grades joins the performance record, which M4, M5 and M6 read. Dashed orange borders are partly built, the dashed grey border is planned, and the red border marks the vulnerable lab.}{fig:modules}
+
+\section{M1: Authentication and onboarding}
+
+Learners and instructors sign in through Clerk. On the first request the data access layer creates a \code{users} row with the student role and no onboarding time, and \code{requireOnboarded()} then sends the new account to a role-based onboarding wizard before any other page opens (Figure~\ref{fig:onboarding}).
+
+A student fills in a profile (name, cohort and experience level), picks focus areas from the OWASP Top~10, and chooses whether to share behavioural telemetry. The experience level (new, some or experienced) records a starting difficulty of Foundational, Guided or Independent for the planned adaptation, and the focus areas are an interest signal for the recommender. An instructor first enters an access code and then a teaching profile: name, designation, department and the cohort taught.
+
+The server checks everything again when the wizard is submitted. Cohort and experience level must come from fixed lists, and the access code must match \code{INSTRUCTOR_ACCESS_CODE}, so a student cannot make themselves an instructor without it. The student branch writes the \code{users} row and the focus areas in one transaction, so a repeated onboarding cannot leave stale focus areas behind.
+
+\diagramfig[0.8\textheight]{onboarding}{Onboarding wizard for both roles}{The server checks the student's choices and the instructor's access code before anything is saved.}{fig:onboarding}
+
+\section{M2: Vulnerable lab}
+\label{sec:m2}
+
+The lab, \code{services/vuln-lab}, is a small Node.js 24 service with no runtime dependencies. It uses only the built-in \code{node:http} and \code{node:sqlite} modules, so its attack surface is the code the team wrote. It runs in Docker as the non-root \code{node} user and refuses to start without \code{LAB_SECRET}. Every request rebuilds its target from the instance seed, and the SQL injection target opens a fresh in-memory SQLite database for each request, so an exploit cannot persist anything or reach another learner's data. Pages come from one small rendering helper with inline CSS and no client-side JavaScript, which keeps the three planted flaws as the only intended vulnerabilities. Two more routes are plumbing: \code{POST /internal/provision} for the platform and \code{GET /health} for a health check. Table~\ref{tab:labs} describes the three challenges.
+
+\begin{table}[!htbp]
+\centering
+\caption{The three live challenges.}
+\label{tab:labs}
+\tablefont
+\begin{tabularx}{\linewidth}{@{}P{2.3cm} P{2.3cm} L P{3.3cm} P{2.6cm}@{}}
+\toprule
+\textbf{Target} & \textbf{OWASP category} & \textbf{Flaw} & \textbf{Where the flag appears} & \textbf{Fix it teaches} \\
+\midrule
+Northwind Billing & A01 Broken Access Control & \code{/invoices/:id} serves any invoice with no ownership check & An internal account note on another tenant's invoice & Check ownership on every object access \\
+Meridian order lookup & A03 Injection & The \code{ref} parameter is concatenated into an SQLite query & The \code{staff} table, read through a UNION query & Parameterised queries \\
+Harbor search & A03 Injection (XSS) & The search term is echoed without escaping, and the flag sits in a cookie without \code{httpOnly} & \code{document.cookie}, read by an injected script & Output encoding, an \code{httpOnly} cookie and a CSP \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{M3: Challenges and scoring}
+
+The catalogue holds seven challenges, seeded from \code{packages/core} into the database by an idempotent script (Table~\ref{tab:catalogue}). Three have a live lab and can be graded. The other four stay locked in the catalogue until their labs are built. Each challenge has an objective, ordered instructions, learning resources and a four-tier hint ladder: concept, direction, technical and guidance. The concept hint is free and the others cost points.
+
+\begin{table}[!htbp]
+\centering
+\caption{The challenge catalogue. Difficulty runs from 1 (Foundational) to 4 (Advanced).}
+\label{tab:catalogue}
+\tablefont
+\begin{tabularx}{\linewidth}{@{}L c c c c P{2.2cm} P{1.8cm}@{}}
+\toprule
+\textbf{Challenge} & \textbf{OWASP} & \textbf{Diff.} & \textbf{Base} & \textbf{Est. min} & \textbf{Hint costs} & \textbf{Status} \\
+\midrule
+Reading another tenant's invoice & A01 & 2 & 150 & 20 & 0, 5, 12, 24 & Live \\
+Union-based extraction in the order lookup & A03 & 3 & 220 & 35 & 0, 5, 15, 30 & Live \\
+Reflected script in the search results & A03 & 2 & 170 & 28 & 0, 7, 16, 28 & Live \\
+Secrets in a verbose error page & A05 & 1 & 90 & 12 & 0, 4, 10, 18 & Catalogue only \\
+Authentication without rate limiting & A07 & 2 & 160 & 25 & 0, 6, 14, 26 & Catalogue only \\
+Session token with a guessable secret & A02 & 3 & 240 & 40 & 0, 9, 22, 44 & Catalogue only \\
+URL preview reaching internal services & A10 & 4 & 300 & 45 & 0, 8, 20, 40 & Catalogue only \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+A hint unlock is stored as a \code{hint_unlock} telemetry event instead of a table of its own. The challenge page reads those events back to show which hints are open, and the scoring rule reads them to charge for the hints. The unlock action also checks that the hint belongs to the challenge in the request, so a hint from another challenge cannot be unlocked cheaply.
+
+The challenge page opens the lab inside the page. A resizable split view puts the brief on the left (objective, instructions, hints, resources, flag form and recent attempts) and the live target on the right, in a sandboxed iframe under a browser-style toolbar with an address bar, reload, maximise and open-in-new-tab. On a phone the split becomes a toggle between the brief and the target. Maximising collapses the brief without reloading the iframe, so the learner does not lose their place in the target.
+
+Three server actions drive the page: \code{startInstance}, \code{unlockHint} and \code{submitFlag}. Each one checks the user first and then calls a use-case in \code{packages/api}. Chapter~\ref{ch:results} gives the scoring rule that \code{submitFlag} applies.
+
+\section{M4: Gamification}
+\label{sec:m4}
+
+Points come from the O3 scores, levels come from point thresholds, and badges and achievements reward learning behaviour. Each element is designed around the harms reported in the literature~\cite{Toda2018dark,Almeida2023negative}:
+
+\begin{itemize}[leftmargin=1.4em]
+\item No leaderboard exists anywhere. No learner sees another learner's rank, and progress is shown only to the learner.
+\item Achievements reward breadth, accuracy and working without hints, and none depends on other learners. The sample set includes a first solve, three injection challenges, a difficulty-3 challenge solved with no hints, solves in six OWASP categories, and accuracy above 70\% over ten attempts.
+\item The score shows each hint cost and never falls below its floor, so a learner who keeps going always earns something.
+\end{itemize}
+
+The \code{achievements} and \code{learner_achievements} tables exist, and the dashboard, achievements and profile pages are built, but they render sample data. The awards are not yet computed from live attempts.
+
+\section{M5: Adaptive engine}
+
+This module is planned. It will run a monitor, analyse, plan and execute loop over the learner model (Section~\ref{sec:future-adaptation}). A transparent weighted rule will estimate proficiency first, following Vykopal et al.~\cite{Vykopal2023smart}, and set the next difficulty. Machine learning comes later as an addition: an at-risk classifier and a recommender in a separate Python worker that writes to the \code{predictions} table. Several parts are already in place: the performance record, the event log, the experience level and focus areas from onboarding, and a \code{predictions} table with the columns the worker will write (at-risk score, risk level, recommended challenge, confidence, model version and computation time).
+
+\section{M6: Instructor analytics}
+
+Seven pages sit under \code{/instructor}, all behind \code{requireInstructor()}: an overview with cohort metrics and a trend chart, a sortable learners table, a page for each learner, an at-risk view, analytics by OWASP category, reports, and a challenge view. They are finished pages but render sample data from \code{packages/core}. The at-risk view is built against the shape the ML worker will produce: risk level, score, confidence, the signals behind the score, model version and held-out accuracy. It will need a new data source but no redesign.
+
+Going live means replacing each sample field with a query over tables that are already written today, as Table~\ref{tab:golive} shows.
+
+\begin{table}[!htbp]
+\centering
+\caption{What each instructor metric will read once it goes live.}
+\label{tab:golive}
+\tablefont
+\begin{tabularx}{\linewidth}{@{}P{5.2cm} L@{}}
+\toprule
+\textbf{Metric} & \textbf{Live source} \\
+\midrule
+Active learners, completion, average score & Counts and averages over \code{attempts}, grouped by week \\
+Points per learner & \code{SUM(attempts.points_awarded)} \\
+Accuracy per learner & \code{AVG(attempts.accuracy)} \\
+Hints used & The count of \code{hint_unlock} events \\
+Performance by category & \code{attempts} joined to \code{challenges.category_id} \\
+Risk & The \code{predictions} table, written by the ML worker \\
+\bottomrule
+\end{tabularx}
+\end{table}

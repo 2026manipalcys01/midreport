@@ -1,0 +1,82 @@
+\chapter{Security considerations}
+\label{ch:security}
+
+The platform hosts vulnerable software on purpose, so it has to hold up against the same classes of bug that it teaches. This chapter lists the safeguards, where each secret lives, and the issues that verification left open.
+
+\section{Safeguards}
+\label{sec:safeguards}
+
+Table~\ref{tab:safeguards} lists each boundary, the mechanism that enforces it, and its status.
+
+\begingroup
+\tablefont
+\begin{longtable}{@{}P{3.2cm} P{8.6cm} P{3.0cm}@{}}
+\caption{Security safeguards.}
+\label{tab:safeguards}\\
+\toprule
+\textbf{Boundary} & \textbf{Mechanism} & \textbf{Status} \\
+\midrule
+\endfirsthead
+\multicolumn{3}{@{}l}{\small\itshape Table~\ref{tab:safeguards}, continued}\\
+\toprule
+\textbf{Boundary} & \textbf{Mechanism} & \textbf{Status} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{3}{r@{}}{\small\itshape Continued on the next page}\\
+\endfoot
+\bottomrule
+\endlastfoot
+Lab and platform & The lab runs on its own Docker network, holds no database credentials and shares no secrets with the platform. & Partial: TCP by address is still open (Section~\ref{sec:open-issues}) \\
+Least privilege in the lab & The lab container runs as the non-root \code{node} user, with no runtime dependencies and no build step. & In place \\
+Identity & Clerk handles sessions and passwords, and its own components render the sign-in and sign-up pages. & In place \\
+Authorisation & The DAL reads \code{users.role} from the database. Every layout and every server action checks it, and no client-side claim is trusted. & In place \\
+Instructor role & An access code, checked on the server during onboarding, stops a student from choosing the instructor role. & In place \\
+Grading & The server compares SHA-256 hashes. No score is computed in the browser. & In place \\
+Flag confidentiality & Flags are derived with HMAC for each instance and never stored in plain text. \code{LAB_SECRET} exists only inside the lab. & In place \\
+Blast radius & The lab is stateless, and the SQL injection target opens a fresh in-memory database for each request, so an exploit cannot persist or reach another learner. & In place \\
+XSS containment & The lab loads in a sandboxed iframe from a different origin, so a payload runs in the lab's origin and cannot read the platform's cookies or the Clerk session. & In place, as long as the lab keeps its own origin \\
+Database access from the website & An ESLint rule stops \code{apps/web} from importing the database packages, so data flows only through \code{api} and \code{auth}. & In place, reported as a lint warning \\
+Development tools & The role switch and the onboarding replay throw an error outside development, and the check runs inside the server action. & In place \\
+Flag guessing & Each flag carries a 64-bit token, every wrong guess lowers the accuracy share and is logged, and a solved challenge accepts no further attempts. & No rate limit yet \\
+Ethical use & Each challenge states its scope, and learners attack only the provided targets. & In place \\
+\end{longtable}
+\endgroup
+
+The iframe sandbox allows scripts and keeps the lab's own origin, because the challenges need both. That makes the separate origin a hard requirement for every deployment: if the lab were served under the platform's domain, a reflected XSS payload would run with the platform's origin and could read the Clerk session cookie.
+
+\section{Secrets inventory}
+
+Table~\ref{tab:secrets} shows where each secret lives and where it must never appear.
+
+\begin{table}[!htbp]
+\centering
+\caption{Secrets inventory.}
+\label{tab:secrets}
+\tablefont
+\begin{tabularx}{\linewidth}{@{}P{4.8cm} P{4.2cm} L@{}}
+\toprule
+\textbf{Secret} & \textbf{Lives in} & \textbf{Never appears in} \\
+\midrule
+\code{CLERK_SECRET_KEY} & The web application's environment & The lab or the browser bundle \\
+\code{DATABASE_URL} & The web application's environment & The lab or the browser bundle \\
+\code{LAB_SECRET} & The lab's environment only & The web application, its example environment file, or the database \\
+\code{INSTRUCTOR_ACCESS_CODE} & The web application's environment, read inside a server action & The browser bundle \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Open issues}
+\label{sec:open-issues}
+
+Probes run on 23~September~2026 on the team's development machine, with Docker 29.6.1, found the following gaps. None of them affects grading, but each one weakens a boundary above.
+
+\begin{itemize}[leftmargin=1.4em]
+\item From inside the lab container, a DNS lookup of the host name \code{db} fails with \code{ENOTFOUND}, but a TCP connection to the database container's IP address on port 5432 opens.
+\item A TCP connection from the lab to the database port published on the host (5433) also opens.
+\item The Compose file uses a development password for PostgreSQL, which would make either open path more serious outside a development machine.
+\item Flag submissions have no rate limit. The 64-bit flag token makes guessing impractical, but a limit would still cut noise in the attempt log.
+\item The lab container has no CPU or memory limit in the Compose file.
+\end{itemize}
+
+The planned fix has three parts. Firewall rules on the VM will drop traffic from the lab network to the platform network and to the host. The database port will not be published outside the host, and its password will come from a secret. The Compose file will set resource limits for the lab. After each change the team will run both probes again. Until both probes fail, the lab cannot be described as having no network route to the database.

@@ -1,0 +1,31 @@
+erDiagram
+  direction LR
+  challenges ||--o{ challenge_instructions : "has steps"
+  challenges ||--o{ challenge_hints : "has hints"
+  challenges ||--o{ challenge_resources : "has resources"
+
+  challenges {
+    uuid id PK
+    text slug UK
+    text title
+  }
+  challenge_instructions {
+    uuid id PK
+    uuid challenge_id FK
+    integer position
+    text text
+  }
+  challenge_hints {
+    uuid id PK
+    uuid challenge_id FK
+    hint_tier tier
+    integer points_cost
+    integer position
+  }
+  challenge_resources {
+    uuid id PK
+    uuid challenge_id FK
+    resource_kind kind
+    text href
+    integer position
+  }

@@ -1,0 +1,27 @@
+sequenceDiagram
+  autonumber
+  participant B as Student browser
+  participant P as Platform
+  participant L as Lab
+  participant D as PostgreSQL
+
+  Note over B,D: Provision
+  B->>P: Launch instance
+  P->>P: seed = 9 random bytes
+  P->>L: POST /internal/provision
+  L->>L: flag = HMAC(secret, slug:seed)
+  L-->>P: sha256(flag)
+  P->>D: Store seed, flag_hash
+  P-->>B: Lab URL with the seed
+  Note over B,D: Exploit
+  B->>L: Attack the vulnerable route
+  L-->>B: Flag revealed
+  Note over B,D: Grade
+  B->>P: Submit flag
+  P->>P: Check user, sha256(flag)
+  P->>D: Compare, insert attempt
+  alt hashes match
+    P-->>B: Solved, score breakdown
+  else no match
+    P-->>B: Incorrect
+  end

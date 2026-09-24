@@ -1,0 +1,37 @@
+\chapter{Conclusion and future work}
+\label{ch:conclusion}
+
+\section{Conclusion}
+
+The first half of the project delivered the core that the rest of the platform depends on. A learner can sign in, finish onboarding, open a live vulnerable target inside the challenge page, and submit a flag that only their own instance could produce. The platform grades that flag on the server by comparing hashes, scores it with a transparent rule, and stores the attempt and its events as a performance record. Objectives O1 and O3 are complete and verified end to end. The literature survey fixed the design of the rest: gamification without leaderboards, adaptation that starts with a weighted rule and adds machine learning later, and an instructor view built on data the platform already records. Verification also found a weakness in the lab's network isolation, which is now tracked with a planned fix.
+
+\section{Future work}
+
+The second half of the project builds on the performance record.
+
+\subsection{Gamification (O2)}
+
+Levels will be computed from each learner's points, the sum of \code{attempts.points_awarded}, and achievements will be awarded from live attempts into \code{learner_achievements}. The dashboard, achievements and profile pages will then read these values in place of sample data.
+
+\subsection{Adaptation loop (O4)}
+\label{sec:future-adaptation}
+
+Adaptive difficulty will follow the MAPE-K control loop from autonomic computing~\cite{Kephart2003vision}, shown in Figure~\ref{fig:adaptation-loop}. The Monitor step reads a learner's attempts and events. The Analyze step turns binary signals from recent work (the flag was correct, the task was solved within its time estimate, the intended technique was used, and the walkthrough was not revealed) into a proficiency score between 0 and 1 with fixed weights, following Vykopal et al.~\cite{Vykopal2023smart}. The Plan step picks the next difficulty, and the Execute step offers the task with suitable hints. The weights are visible and an instructor can reason about them, like the scoring rule. Machine learning is added later and does not replace this rule.
+
+\diagramfig{adaptation-loop}{Planned adaptation loop (MAPE-K)}{A weighted rule estimates proficiency first, and ML adds to it later.}{fig:adaptation-loop}
+
+\subsection{ML worker (O4 and O5)}
+
+A Python service built with FastAPI will read \code{attempts} and \code{telemetry_events}, derive interpretable features such as accuracy, time on task and hint use, and write at-risk scores and recommended challenges to \code{predictions}. It will run on a schedule, off the request path, and it will never write to \code{attempts}. The model will be validated on a held-out split of the collected attempts, reporting its prediction accuracy and whether its recommendations match an expert judgement of challenge difficulty.
+
+\subsection{Instructor dashboard (O5)}
+
+The seven instructor pages will switch from sample data to the live queries in Table~\ref{tab:golive}, and the at-risk view will read \code{predictions} once the worker writes to it.
+
+\subsection{Pilot evaluation (O6)}
+
+The pilot will measure the platform on three axes. For practical skill, a consenting cohort will take a pre-test and a post-test on unseen challenges. For engagement, a short questionnaire will be combined with usage data: attempts, time on task and return visits. For the ML component, the held-out validation described above applies. Where the cohort allows, a configuration with the adaptive and gamified features turned on will be compared with a baseline that has them turned off, following the method of prior work on detecting struggling students~\cite{Svabensky2024detecting}.
+
+\subsection{Lab hardening and coverage}
+
+The open issues in Section~\ref{sec:open-issues} will be fixed and the probes run again, and flag submissions will get a rate limit. The four catalogue-only challenges (A02, A05, A07 and A10) will get labs of their own, which extends O1 to six OWASP categories. The platform will then be deployed on the campus VM for the pilot.

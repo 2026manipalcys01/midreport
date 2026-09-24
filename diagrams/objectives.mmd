@@ -1,0 +1,21 @@
+flowchart TB
+  O1["O1 Vulnerable web app<br/>built"]
+  O3["O3 Automated scoring<br/>built"]
+  O2["O2 Gamification<br/>partly built"]
+  O4["O4 Adaptive support<br/>partly built"]
+  O5["O5 Instructor dashboard<br/>partly built"]
+  O6["O6 Effectiveness pilot<br/>planned"]
+
+  O1 -- "gradable attempts" --> O3
+  O3 -- "points" --> O2
+  O3 -- "performance record" --> O4
+  O3 -- "progress, scores" --> O5
+  O4 -- "at-risk learners" --> O5
+  O2 --> O6
+  O4 --> O6
+  O5 --> O6
+
+  classDef partial stroke-dasharray:6 4;
+  classDef planned stroke:#8C8C8C,stroke-dasharray:3 3,color:#595959;
+  class O2,O4,O5 partial;
+  class O6 planned;

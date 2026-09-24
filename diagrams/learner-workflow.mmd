@@ -1,0 +1,24 @@
+flowchart TB
+  subgraph s1["1. Enter"]
+    direction LR
+    a1["Sign in"] --> a2["Onboarding"] --> a3["Pick a challenge"]
+  end
+  subgraph s2["2. Attack"]
+    direction LR
+    b1["Provision instance"] --> b2["Exploit the target"] --> b3["Recover the flag"]
+  end
+  subgraph s3["3. Grade"]
+    direction LR
+    c1["Submit the flag"] --> c2["Verify hash on server"] --> c3["Score the attempt"]
+  end
+  subgraph s4["4. Feedback"]
+    direction LR
+    d1["Log attempt and events"] --> d2["Points, level, badges"] --> d3["Next challenge"]
+  end
+  s1 --> s2 --> s3 --> s4
+
+  classDef partial stroke-dasharray:6 4;
+  classDef planned stroke:#8C8C8C,stroke-dasharray:3 3,color:#595959;
+  class d2 partial;
+  class d3 planned;
+  style s2 fill:#FBEEEC,stroke:#B8473F,stroke-dasharray:5 4;

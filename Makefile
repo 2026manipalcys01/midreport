@@ -1,14 +1,14 @@
-# Synopsis build. Everything runs in the self-contained Docker image
+# Report build. Everything runs in the self-contained Docker image
 # (TeX Live + Mermaid + rsvg-convert), so the only host requirement is Docker.
 #
-#   make            render diagrams and compile the PDF  (build/CYS01-Synopsis.pdf)
+#   make            render diagrams and compile the PDF  (build/CYS01-Mini-Project-Report.pdf)
 #   make diagrams   render diagrams only (src/figures/*.svg + build PDFs)
 #   make watch      continuous rebuild on save
 #   make image      (re)build the Docker image
 #   make clean      remove aux files
 #   make cleanall   remove the whole build/ directory
 
-IMAGE ?= synopsis-builder
+IMAGE ?= cys01-report-builder
 RUN    = docker run --rm -v "$(CURDIR)":/work -w /work $(IMAGE)
 
 .PHONY: all pdf diagrams watch image ensure-image clean cleanall

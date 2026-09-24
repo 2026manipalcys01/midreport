@@ -1,0 +1,47 @@
+erDiagram
+  users ||--o{ challenge_instances : opens
+  challenges ||--o{ challenge_instances : "runs as"
+  users ||--o{ attempts : submits
+  challenges ||--o{ attempts : "scored on"
+  challenge_instances ||--o{ attempts : grades
+
+  users {
+    uuid id PK
+    text clerk_id UK
+    user_role role
+    text cohort
+    timestamptz onboarded_at
+  }
+  challenges {
+    uuid id PK
+    text slug UK
+    owasp_category category_id
+    integer difficulty
+    integer base_points
+    integer estimated_minutes
+    boolean is_active
+  }
+  challenge_instances {
+    uuid id PK
+    uuid challenge_id FK
+    uuid learner_id FK
+    text seed
+    text flag_hash
+    instance_status status
+    timestamptz started_at
+  }
+  attempts {
+    uuid id PK
+    uuid learner_id FK
+    uuid challenge_id FK
+    uuid instance_id FK
+    attempt_outcome outcome
+    real accuracy
+    integer duration_seconds
+    integer hints_used
+    integer score_completion
+    integer score_accuracy
+    integer score_time
+    integer score_hint_penalty
+    integer score_total
+  }

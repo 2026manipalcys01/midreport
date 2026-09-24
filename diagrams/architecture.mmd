@@ -1,0 +1,33 @@
+---
+config:
+  flowchart:
+    nodeSpacing: 22
+---
+flowchart TB
+  subgraph P["Presentation: apps/web, Next.js 16 and React 19"]
+    direction LR
+    p1["Student pages<br/>6 routes"] ~~~ p2["Lab workspace<br/>brief and target"] ~~~ p3["Instructor pages<br/>7 routes"] ~~~ p4["Onboarding<br/>wizard"]
+  end
+
+  subgraph D["Domain packages"]
+    direction LR
+    d1["auth<br/>Clerk DAL"] ~~~ d0["api<br/>use-cases"] ~~~ d2["scoring<br/>weighted rule"] ~~~ d3["lab<br/>lab client"]
+  end
+
+  clerk["Clerk<br/>sign-in, sessions"]
+  db["db<br/>Drizzle schema, client"]
+  pg[("PostgreSQL 16<br/>12 tables")]
+  lab["Vulnerable lab<br/>Node.js 24 container"]
+  ml["ML worker (planned)<br/>Python, FastAPI"]
+
+  P -- "server actions" --> D
+  D -. "session" .-> clerk
+  D -- "queries" --> db
+  D -- "provision" --> lab
+  db -- "SQL" --> pg
+  ml -. "read attempts,<br/>write predictions" .-> pg
+
+  classDef planned stroke:#8C8C8C,stroke-dasharray:3 3,color:#595959;
+  classDef danger stroke:#B8473F,stroke-width:1.5px;
+  class ml planned;
+  class lab danger;

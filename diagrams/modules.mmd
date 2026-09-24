@@ -1,0 +1,24 @@
+flowchart TB
+  m1["M1 Authentication and onboarding<br/>Clerk sign-in, roles, access code"]
+  m3["M3 Challenges and scoring<br/>catalogue, hints, flag check, score"]
+  m2["M2 Vulnerable lab<br/>IDOR, SQL injection, XSS"]
+  rec[("Performance record<br/>attempts, telemetry_events")]
+  m4["M4 Gamification<br/>points, levels, badges"]
+  m5["M5 Adaptive engine<br/>next difficulty, ML models"]
+  m6["M6 Instructor analytics<br/>progress, at-risk learners"]
+
+  m1 -- "onboarded learner" --> m3
+  m3 -- "provision instance" --> m2
+  m2 -. "flag, carried by the learner" .-> m3
+  m3 -- "every attempt" --> rec
+  rec --> m4
+  rec --> m5
+  rec --> m6
+  m5 -- "at-risk flags" --> m6
+
+  classDef partial stroke-dasharray:6 4;
+  classDef planned stroke:#8C8C8C,stroke-dasharray:3 3,color:#595959;
+  classDef danger stroke:#B8473F,stroke-width:1.5px;
+  class m4,m6 partial;
+  class m5 planned;
+  class m2 danger;

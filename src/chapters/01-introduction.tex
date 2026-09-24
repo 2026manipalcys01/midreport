@@ -1,0 +1,54 @@
+\chapter{Introduction}
+\label{ch:introduction}
+
+\section{Background}
+
+Web applications now carry banking, shopping, government services and coursework, so they are a common target for attackers. The same classes of flaw keep appearing in them: injection, broken access control, cross-site scripting (XSS) and weak authentication. The OWASP Top~10 lists these among the most critical security risks to web applications~\cite{OwaspTop10}, and it is the usual reference for what a web-security course should cover.
+
+Offensive web security is learned by doing: hands-on practice is the most effective way to learn web-application security, and Capture-the-Flag (CTF) exercises are the usual way to deliver it~\cite{Chapman2014picoctf,Svabensky2020what}. In a CTF course the instructor assigns vulnerable web challenges. A student exploits a flaw and submits the flag, a secret string that only appears once the exploit works. The format scales well and students find it motivating. It also maps onto the work of a penetration tester.
+
+\section{Problem statement}
+
+Using the CTF format with a real class exposes three problems.
+
+First, every learner gets the same path. Beginners and experienced students get the same fixed sequence of challenges at the same difficulty. Weaker students are overwhelmed and stronger ones get bored~\cite{Streicher2016adaptive,Vykopal2023smart}.
+
+Game elements are also added without care. Points, badges and leaderboards get added because they are expected, yet they can lower motivation in the students who most need support~\cite{Toda2018dark,Almeida2023negative}.
+
+Finally, the instructor sees too little. Platforms report whether a challenge was solved, and sometimes how long it took. They do not show who is falling behind, so struggling students are noticed late~\cite{Svabensky2024detecting}.
+
+Two further weaknesses follow from these. Assessment usually checks only whether the flag was correct, which says little about how well the learner worked. The vulnerable applications used for practice are also standalone tools, with no link to any record of learner progress.
+
+\begin{quote}
+\textit{Problem statement.} Design and develop a web-security training platform that adapts to each learner, uses game elements without their documented harms, and shows the instructor early who needs help.
+\end{quote}
+
+\section{The proposed platform}
+
+We are building an adaptive, gamified web-security training platform for penetration-testing education. It hosts an intentionally vulnerable application based on the OWASP Top~10, scores every attempt automatically, and uses each learner's record to adjust hints and pick the next challenge. Table~\ref{tab:glance} lists its five parts and the objective each part serves. Chapter~\ref{ch:objectives} states the objectives in full.
+
+\begin{table}[!htbp]
+\centering
+\caption{The platform at a glance.}
+\label{tab:glance}
+\tablefont
+\begin{tabularx}{\linewidth}{@{}P{3.4cm} L c@{}}
+\toprule
+\textbf{Part} & \textbf{What it does} & \textbf{Objective} \\
+\midrule
+Vulnerable lab & Serves OWASP Top~10 flaws from a container on its own network & O1 \\
+Automated scoring & Scores completion, accuracy and time, and logs every attempt & O3 \\
+Gamification & Awards points, levels and badges, with no leaderboard & O2 \\
+Adaptive support & Offers hints, resources and a suggested next challenge & O4 \\
+Instructor view & Shows progress, completion and at-risk learners in one place & O5 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Scope}
+
+This is a three-member group project. The machine-learning part stays simple and interpretable, and a pilot with a student cohort will measure whether the platform works. For the mid-semester review the team built the part that the rest of the platform depends on: a learner can attack a live target, the platform grades the result on the server, and every attempt is stored. This report describes the design of the whole platform and the state of each part on 23~September~2026.
+
+\section{Organisation of the report}
+
+Chapter~\ref{ch:literature} surveys related work and derives six research gaps, and Chapter~\ref{ch:objectives} states the objectives that close them. Chapter~\ref{ch:specifications} gives the requirements and the software and hardware specification. Chapter~\ref{ch:design} presents the architecture and the main design decisions, including the database, the flag lifecycle and network isolation. Chapter~\ref{ch:modules} describes the six modules, and Chapter~\ref{ch:flowcharts} gives the block diagram and the flowcharts. Chapter~\ref{ch:security} covers security. Chapter~\ref{ch:results} reports the work done and the verification results, Chapter~\ref{ch:timeline} shows the timeline, and Chapter~\ref{ch:conclusion} concludes with future work.

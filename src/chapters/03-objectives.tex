@@ -1,0 +1,38 @@
+\chapter{Objectives}
+\label{ch:objectives}
+
+The aim of the project is to design and develop a gamified web-security training platform where students practise penetration testing on realistic vulnerable applications, with interactive learning, performance evaluation and instructor analytics.
+
+The aim breaks into six objectives. Each closes one gap from Table~\ref{tab:gaps}, and Table~\ref{tab:objectives} gives the success criterion for each. The adaptive behaviour comes from three objectives working together: scoring produces a performance record (O3), a simple model turns that record into a prediction and a recommendation (O4), and the instructor sees the result (O5).
+
+\begin{enumerate}[label=\textbf{O\arabic*},leftmargin=2.6em,itemsep=0.45em]
+\item Develop an intentionally vulnerable web application with OWASP Top~10 vulnerabilities~\cite{OwaspTop10}, delivered as challenges inside the platform.
+\item Design a gamification module with points, levels, badges and achievements, where each element is designed around the documented negative effects of gamification.
+\item Develop an automated scoring mechanism that evaluates each attempt from completion, accuracy, time and hint use, and records every attempt as the learner's performance record.
+\item Provide hints and learning resources during exercises, and use a simple, interpretable model over the performance record to estimate a learner's likely difficulty and recommend a suitably difficult next challenge.
+\item Develop an instructor dashboard that shows progress, challenge completion and performance for each learner and for the cohort, with at-risk learners flagged early.
+\item Evaluate the effect of the platform on learner engagement and practical cybersecurity skill.
+\end{enumerate}
+
+\begin{table}[!htbp]
+\centering
+\caption{Objectives, the gap each one closes, and its success criterion.}
+\label{tab:objectives}
+\tablefont
+\begin{tabularx}{\linewidth}{@{}c P{3.3cm} c L@{}}
+\toprule
+\textbf{ID} & \textbf{Objective} & \textbf{Gap} & \textbf{Success criterion} \\
+\midrule
+O1 & Vulnerable web application & G1 & Challenges from several OWASP Top~10 families, each exploitable end to end in a contained lab, with a separate flag for each learner checked on the server. \\
+O2 & Gamification module & G2 & Points, levels, badges and achievements, each with a design choice justified against the negative-effects literature, and no leaderboard. \\
+O3 & Automated scoring & G3 & Every attempt scored automatically as a function of completion, accuracy and time, with no manual grading. \\
+O4 & Adaptive support & G4 & A hint ladder on every challenge, and a next-challenge recommendation validated against held-out learner data. \\
+O5 & Instructor dashboard & G5 & Per-learner and cohort progress, completion and scores from live data, with at-risk learners flagged. \\
+O6 & Effectiveness evaluation & G6 & A pilot with a student cohort that reports the change in practical skill between a pre-test and a post-test, and a measured engagement outcome. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The objectives depend on one another, as Figure~\ref{fig:objectives} shows. Scoring needs gradable attempts from the lab. Gamification, adaptation and the dashboard all read the performance record that scoring writes, and the pilot can only run once the learner-facing parts are live. This order decided what was built first: O1 and O3 are complete, O2, O4 and O5 have working parts, and O6 is planned. Chapter~\ref{ch:results} gives the status of each objective in detail.
+
+\diagramfig{objectives}{Dependencies between the objectives}{Status at mid-semester: a solid border means built, a dashed orange border means partly built, and a dashed grey border means planned.}{fig:objectives}

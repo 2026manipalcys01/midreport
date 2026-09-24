@@ -1,0 +1,43 @@
+erDiagram
+  direction LR
+  users ||--o{ user_focus_areas : picks
+  users ||--o{ telemetry_events : generates
+  users ||--o| predictions : has
+  users ||--o{ learner_achievements : earns
+  achievements ||--o{ learner_achievements : "awarded as"
+
+  users {
+    uuid id PK
+    experience_level experience_level
+    boolean telemetry_consent
+  }
+  user_focus_areas {
+    uuid user_id PK, FK
+    owasp_category category_id PK
+  }
+  telemetry_events {
+    bigserial id PK
+    uuid learner_id FK
+    text type
+    jsonb payload
+    timestamptz ts
+  }
+  predictions {
+    uuid id PK
+    uuid learner_id FK, UK
+    real at_risk_score
+    risk_level risk_level
+    uuid recommended_challenge_id FK
+  }
+  achievements {
+    uuid id PK
+    text slug UK
+    text criterion
+    integer goal
+  }
+  learner_achievements {
+    uuid learner_id PK, FK
+    uuid achievement_id PK, FK
+    integer progress
+    timestamptz unlocked_at
+  }

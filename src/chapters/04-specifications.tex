@@ -1,0 +1,100 @@
+\chapter{Specifications}
+\label{ch:specifications}
+
+\section{Functional requirements}
+
+Table~\ref{tab:functional} lists the functional requirements, the objective each one traces to, and its status at mid-semester. FR7 serves every objective: without sign-in and role checks, no other feature can be trusted.
+
+\begin{table}[!htbp]
+\centering
+\caption{Functional requirements traced to objectives.}
+\label{tab:functional}
+\tablefont
+\begin{tabularx}{\linewidth}{@{}c L c P{2.0cm}@{}}
+\toprule
+\textbf{ID} & \textbf{Requirement} & \textbf{Objective} & \textbf{Status} \\
+\midrule
+FR1 & Host a vulnerable application that covers OWASP Top~10 families and gives each learner their own flag, checked on the server. & O1 & Met \\
+FR2 & Score every attempt automatically on completion, accuracy and time, less the cost of any hints used. & O3 & Met \\
+FR3 & Award points, levels, badges and achievements, with no leaderboard. & O2 & Partly met \\
+FR4 & Offer a hint ladder and learning resources that a learner can unlock when stuck. & O4 & Met \\
+FR5 & Train a simple ML model that flags at-risk learners and recommends the next challenge. & O4, O5 & Planned \\
+FR6 & Show the instructor progress, completion and scores for each learner and for the cohort. & O5 & Partly met \\
+FR7 & Sign users in and enforce the student and instructor roles on the server, with an access code for instructors. & All & Met \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Non-functional requirements}
+
+Table~\ref{tab:nonfunctional} lists the constraints that shaped the design and where each one is met.
+
+\begin{table}[!htbp]
+\centering
+\caption{Non-functional requirements.}
+\label{tab:nonfunctional}
+\tablefont
+\begin{tabularx}{\linewidth}{@{}P{2.6cm} L L@{}}
+\toprule
+\textbf{Quality} & \textbf{Requirement} & \textbf{How the design meets it} \\
+\midrule
+Isolation & The lab runs on its own Docker network and holds no database credentials. & The \code{labnet} network, and \code{LAB_SECRET} kept inside the lab. One gap is open (Section~\ref{sec:open-issues}). \\
+Integrity & The platform stores only \code{sha256(flag)} and grades with a hash comparison on the server. & \code{challenge_instances.flag_hash} and the \code{submitFlag} use-case. \\
+Access control & Roles come from our database, and every server action checks them. & The data access layer in \code{packages/auth}. \\
+Responsiveness & Scoring runs while the learner waits, and ML work runs in the background. & A pure scoring function, and an ML worker kept off the request path. \\
+Privacy & Behavioural telemetry beyond the grading events needs the learner's consent. & \code{users.telemetry_consent}, set during onboarding. \\
+Maintainability & Domain code sits in packages with one-way dependencies. & Seven workspace packages, the TypeScript checker and a lint rule. \\
+Deployability & The whole system runs on one VM. & Docker Compose for the database and the lab. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Software specification}
+
+Table~\ref{tab:software} gives the software the platform is built on. The versions are the ones in the repository on 23~September~2026.
+
+\begin{table}[!htbp]
+\centering
+\caption{Software specification.}
+\label{tab:software}
+\tablefont
+\begin{tabularx}{\linewidth}{@{}P{3.6cm} L@{}}
+\toprule
+\textbf{Component} & \textbf{Specification} \\
+\midrule
+Web framework & Next.js 16.3 and React 19.2, written in TypeScript 5.9 \\
+Database & PostgreSQL 16 with the Drizzle ORM 0.45 \\
+Authentication & Clerk, through its Next.js SDK version 7 \\
+User interface & shadcn/ui components on Base UI, Tailwind CSS 4 and Phosphor icons \\
+Vulnerable lab & Node.js 24 with its built-in \code{node:http} and \code{node:sqlite} modules, in Docker \\
+Build and tests & pnpm 10, Turborepo 2, ESLint 9 and the built-in \code{node:test} runner \\
+Containers & Docker Compose \\
+ML worker & Python with FastAPI (planned) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Hardware specification}
+
+The platform needs modest hardware, as Table~\ref{tab:hardware} shows. The server figure is sized for a pilot with one class.
+
+\begin{table}[!htbp]
+\centering
+\caption{Hardware specification.}
+\label{tab:hardware}
+\tablefont
+\begin{tabularx}{\linewidth}{@{}P{3.6cm} L@{}}
+\toprule
+\textbf{Item} & \textbf{Specification} \\
+\midrule
+Development & Team laptops that run Docker and Node.js 20 or later \\
+Server & A campus server or VM with about 4 vCPUs, 8~GB RAM and 40~GB of disk \\
+Network & The campus network, with the lab on its own Docker network \\
+Client & Any current web browser \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Data sources}
+
+The platform generates its own data. Every attempt is stored with its outcome, accuracy, time taken, hints used and five score parts, and every hint unlock and flag submission is logged as an event. This record is the data that the ML model will learn from, so no external personal dataset is needed. The team writes the challenge content, using the OWASP Top~10~\cite{OwaspTop10} and OWASP Juice Shop~\cite{OwaspJuiceShop} as references. The pilot data, a pre-test and post-test of practical skill and an engagement survey, will come from a consenting student cohort.

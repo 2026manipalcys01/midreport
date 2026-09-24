@@ -1,0 +1,27 @@
+flowchart TB
+  browser["Learner's browser"]
+
+  subgraph platform["network: platform"]
+    web["web<br/>Next.js 16"]
+    db[("db<br/>postgres:16")]
+  end
+  subgraph labnet["network: labnet"]
+    lab["vuln-lab<br/>Node.js 24, port 8090"]
+  end
+  ml["ML worker<br/>FastAPI, planned"]
+
+  browser -- "platform pages" --> web
+  browser -- "lab URL, own origin" --> lab
+  web -- "provision" --> lab
+  web -- "SQL" --> db
+  lab -. "by name: blocked" .-x db
+  lab -. "by IP: open issue" .-> db
+  db -.- ml
+
+  classDef planned stroke:#8C8C8C,stroke-dasharray:3 3,color:#595959;
+  classDef danger stroke:#B8473F,stroke-width:1.5px;
+  class ml planned;
+  class lab danger;
+  style labnet fill:#FBEEEC,stroke:#B8473F,stroke-dasharray:5 4;
+  linkStyle 4 stroke:#B8473F,color:#B8473F
+  linkStyle 5 stroke:#B8473F,color:#B8473F

@@ -1,0 +1,14 @@
+flowchart TB
+  start["New account, not onboarded<br/>requireOnboarded() sends it to /onboarding"] --> role{"Choose a role"}
+
+  role -- "Student" --> s1["Profile<br/>name, cohort, experience level"]
+  s1 --> s2["Focus areas<br/>OWASP Top 10 categories"]
+  s2 --> s3["Data and privacy<br/>telemetry consent"]
+  s3 --> sv{"Server checks<br/>cohort and level"}
+  sv -- "valid" --> sw["Save in one transaction<br/>then go to /dashboard"]
+
+  role -- "Instructor" --> i1["Verify<br/>enter the access code"]
+  i1 --> i2["Teaching profile<br/>name, designation, department, cohort"]
+  i2 --> iv{"Server checks<br/>the access code"}
+  iv -- "wrong" --> i1
+  iv -- "correct" --> iw["Save with role instructor<br/>then go to /instructor"]

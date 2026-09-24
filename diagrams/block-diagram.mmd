@@ -1,25 +1,34 @@
-flowchart LR
-    subgraph Clients
-        SB[Student browser]
-        IB[Instructor browser]
-    end
+flowchart TB
+  student["Student browser"]
+  instructor["Instructor browser"]
 
-    subgraph Platform["Training platform (trusted)"]
-        API["App + API<br/>scoring, gamification, hints"]
-        ML["Analytics + ML worker<br/>predict + recommend"]
-        DASH[Instructor dashboard]
-    end
+  subgraph platform["Training platform, one Next.js app"]
+    app["Web app and API<br/>auth, hints, flag check,<br/>scoring, points"]
+    dash["Instructor dashboard<br/>progress, at-risk learners"]
+  end
 
-    subgraph Isolated["Vulnerable zone - network-isolated to campus network"]
-        VULN["Vulnerable web app<br/>(seeded OWASP Top 10)"]
-    end
+  subgraph zone["Separate lab network"]
+    lab["Vulnerable web app<br/>IDOR, SQL injection, XSS<br/>a flag for each learner"]
+  end
 
-    DB[(Database)]
+  clerk["Clerk<br/>identity"]
+  db[("PostgreSQL<br/>attempts, telemetry,<br/>predictions")]
+  ml["Analytics and ML worker<br/>at-risk, next challenge"]
 
-    SB -->|attacks challenges| VULN
-    SB -->|points, badges, hints, next challenge| API
-    IB --> DASH
-    VULN -->|server-side verified result| API
-    API -->|attempt record| DB
-    ML -->|read attempts, write progress| DB
-    DASH --> DB
+  student -- "exploit" --> lab
+  student -- "submit flag" --> app
+  instructor -- "view" --> dash
+  app -- "provision" --> lab
+  app -. "sign-in" .-> clerk
+  app -- "attempt record" --> db
+  dash -- "read progress" --> db
+  db <-. "attempts out,<br/>predictions in" .-> ml
+
+  classDef planned stroke:#8C8C8C,stroke-dasharray:3 3,color:#595959;
+  classDef partial stroke-dasharray:6 4;
+  classDef danger stroke:#B8473F,stroke-width:1.5px;
+  class ml planned;
+  class dash partial;
+  class lab danger;
+  style platform fill:#FDF4EA,stroke:#E2B181;
+  style zone fill:#FBEEEC,stroke:#B8473F,stroke-dasharray:5 4;

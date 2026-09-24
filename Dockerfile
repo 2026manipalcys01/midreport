@@ -1,4 +1,4 @@
-# Build image for the synopsis: TeX Live + Mermaid CLI + rsvg-convert.
+# Build image for the report: TeX Live, Mermaid CLI and rsvg-convert.
 # One image renders the diagrams and compiles the document, so `make` needs
 # nothing on the host but Docker.
 FROM texlive/texlive:TL2025-historic

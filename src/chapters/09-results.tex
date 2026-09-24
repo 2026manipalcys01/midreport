@@ -1,0 +1,172 @@
+\chapter{Work done and results}
+\label{ch:results}
+
+\section{Objective status at mid-semester}
+
+Table~\ref{tab:status} gives the status of each objective on 23~September~2026. Two objectives are complete and tested end to end, three have working parts, and one needs a live cohort. In numbers, the platform has 3 live vulnerable challenges out of 7 in the catalogue, 12 database tables, 5 passing unit tests for the scoring rule, 6 student pages and 7 instructor pages.
+
+\begin{table}[!htbp]
+\centering
+\caption{Objective status on 23 September 2026.}
+\label{tab:status}
+\tablefont
+\begin{tabularx}{\linewidth}{@{}c P{3.2cm} P{1.9cm} L@{}}
+\toprule
+\textbf{ID} & \textbf{Objective} & \textbf{Status} & \textbf{Done so far, and what remains} \\
+\midrule
+O1 & Vulnerable web app & Built & The lab container serves three live challenges, with a separate flag for each learner. \\
+O3 & Automated scoring & Built & The weighted rule has five unit tests, and every attempt is logged. \\
+O2 & Gamification & Partly built & The tables and pages exist. Awards are not yet connected to live attempts. \\
+O4 & Adaptive support & Partly built & The hint ladder and resources are live. The adaptation loop is planned. \\
+O5 & Instructor dashboard & Partly built & Seven pages are built on sample data. Live queries come next. \\
+O6 & Effectiveness pilot & Planned & Starts once O2, O4 and O5 are live. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{O1: the vulnerable lab}
+
+The lab described in Section~\ref{sec:m2} is complete. Its three challenges (Table~\ref{tab:labs}) are active in the database, and the platform provisions an instance for each learner on demand. Each instance has its own seed, so the flag of one learner does not work for another. The platform stores only the hash of each flag, and the secret that derives the flags never leaves the lab container. The end-to-end check in Section~\ref{sec:verification} ran the full provision, submit and grade cycle against the running lab and database.
+
+\section{O3: the automated scoring rule}
+\label{sec:scoring}
+
+The scoring rule is a pure function of 43 lines in \code{packages/scoring}, with no imports from the database or any framework. Five inputs go in. The challenge supplies its base points $B$ and its time estimate $E$ in minutes. The submission supplies the time taken $t$ in seconds, the number $f$ of wrong flags submitted earlier on the same instance, and the total cost $H$ of the hints the learner unlocked. Table~\ref{tab:constants} lists the constants.
+
+\begin{table}[!htbp]
+\centering
+\caption{Constants of the scoring rule.}
+\label{tab:constants}
+\tablefont
+\begin{tabularx}{\linewidth}{@{}c c L@{}}
+\toprule
+\textbf{Symbol} & \textbf{Value} & \textbf{Meaning} \\
+\midrule
+$w_c$ & 0.55 & Share of $B$ paid for completing the challenge \\
+$w_a$ & 0.25 & Share of $B$ paid for accuracy \\
+$w_t$ & 0.20 & Share of $B$ paid for speed \\
+$g$ & 1.5 & Time grace: the time share reaches zero at $1.5$ times the estimate \\
+$s$ & 0.25 & Accuracy step: each wrong flag removes a quarter of the accuracy share \\
+$\phi$ & 0.10 & Floor: a solved challenge never pays less than 10\% of $B$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+With $\operatorname{clamp}(x) = \max(0, \min(1, x))$ and $\operatorname{round}$ as rounding to the nearest integer, the components are:
+\begin{align}
+C &= \operatorname{round}(w_c B) \label{eq:completion}\\
+A &= \operatorname{round}\big(w_a B \, \operatorname{clamp}(1 - s f)\big) \label{eq:accuracy}\\
+T &= \operatorname{round}\!\left(w_t B \, \operatorname{clamp}\!\left(\frac{60 g E - t}{60 g E}\right)\right) \label{eq:time}\\
+S &= \max\big(\operatorname{round}(\phi B),\ C + A + T - \operatorname{round}(H)\big) \label{eq:total}
+\end{align}
+
+Completion carries most of the weight and does not depend on speed, mistakes or hints, so a slow learner who persists is still well rewarded. Each wrong flag cuts the accuracy share by a quarter, which discourages guessing without making one typo ruinous. The time share falls in a straight line and reaches zero at $1.5$ times the estimate; being slow loses only the bonus and never goes negative. A hint is a flat purchase with the same price on any challenge. Because $w_c + w_a + w_t = 1$, a perfect run with no hints earns exactly $B$, and the floor guarantees that any solve earns at least $\operatorname{round}(0.10B)$. A wrong flag never reaches the function: it is stored with every score column set to zero.
+
+Table~\ref{tab:example} works through one case: a challenge worth $B = 100$ points with an estimate of $E = 20$ minutes, solved in 20 minutes after one wrong flag and with one 10-point hint. The time budget is $1.5 \times 20 = 30$ minutes, of which 10 remain.
+
+\begin{table}[!htbp]
+\centering
+\caption{Worked example of the scoring rule.}
+\label{tab:example}
+\tablefont
+\begin{tabular}{@{}l l r@{}}
+\toprule
+\textbf{Component} & \textbf{Calculation} & \textbf{Points} \\
+\midrule
+Completion & $0.55 \times 100$ & 55 \\
+Accuracy & $0.25 \times 100 \times 0.75$ & 19 \\
+Time & $0.20 \times 100 \times (30 - 20) / 30$ & 7 \\
+Hint cost & one hint & $-10$ \\
+\midrule
+Total & $55 + 19 + 7 - 10$ & 71 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:sensitivity} shows how quickly the accuracy and time factors fall. The time factor depends only on the fraction $r = t / 60E$ of the estimate used, so its shape is the same for a 12-minute challenge and a 45-minute one. A learner who finishes exactly on the estimate still earns a third of the time share.
+
+\begin{table}[!htbp]
+\centering
+\caption{How the accuracy factor falls with wrong flags $f$, and the time factor with the fraction $r$ of the estimate used.}
+\label{tab:sensitivity}
+\tablefont
+\begin{tabular}{@{}l c c c c c c@{}}
+\toprule
+Wrong flags $f$ & 0 & 1 & 2 & 3 & 4 & 5 or more \\
+Accuracy factor & 1.00 & 0.75 & 0.50 & 0.25 & 0 & 0 \\
+\midrule
+Fraction of estimate $r$ & 0 & 0.5 & 0.75 & 1.0 & 1.25 & 1.5 or more \\
+Time factor & 1.00 & 0.67 & 0.50 & 0.33 & 0.17 & 0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The rule has four properties that the tests pin down. The total is bounded above by $B$ and, for a solve, below by the floor. More wrong flags, more time or more hints can never raise the total. Each component is rounded and stored as an integer, so the breakdown a learner sees always adds up. And the function is pure: the same five inputs always give the same score, with no clock, database or random input, which is what makes it unit-testable and lets the planned recommender reproduce it offline.
+
+\section{The performance record}
+
+Every submission, right or wrong, writes one row to \code{attempts} with the outcome, the accuracy factor, the time taken, the number of hints used, the points awarded and all five score parts. Three event types go to \code{telemetry_events} (Table~\ref{tab:events}). Together they form the performance record that the gamification, dashboard and ML features will read. The event payload is \code{jsonb} because the three event types share almost no fields.
+
+\begin{table}[!htbp]
+\centering
+\caption{Telemetry events written today.}
+\label{tab:events}
+\tablefont
+\begin{tabularx}{\linewidth}{@{}P{3.0cm} P{4.2cm} L@{}}
+\toprule
+\textbf{Event type} & \textbf{Written when} & \textbf{Payload} \\
+\midrule
+\code{challenge_open} & An instance is first provisioned & The challenge slug \\
+\code{hint_unlock} & A learner unlocks a hint & The hint tier, its cost and its ID \\
+\code{flag_submit} & A flag is submitted & Whether it was correct, and the attempt number \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Other work completed}
+
+Several parts outside O1 and O3 are also done. Onboarding works for both roles, with the instructor access code checked on the server. The lab opens in the challenge page next to the task brief. Clerk sign-in is in place, with role checks in every layout and server action. The six student pages and seven instructor pages are finished, several of them on sample data for now. The codebase has its own documentation site, which describes every module, the database schema and the decisions behind the design.
+
+\section{Verification results}
+\label{sec:verification}
+
+All checks in Table~\ref{tab:verification} were run on 23~September~2026 against the local stack: the repository at commit \code{6a1fa8f}, PostgreSQL 16 and the lab container. The end-to-end check was a script that called the \code{api} use-cases directly for a temporary user, which it deleted afterwards. It used the reflected XSS challenge, with $B = 170$ and $E = 28$ minutes.
+
+\begingroup
+\tablefont
+\begin{longtable}{@{}P{2.8cm} P{5.0cm} P{5.2cm} P{1.5cm}@{}}
+\caption{Verification results, 23 September 2026.}
+\label{tab:verification}\\
+\toprule
+\textbf{Check} & \textbf{Method} & \textbf{Result} & \textbf{Status} \\
+\midrule
+\endfirsthead
+\multicolumn{4}{@{}l}{\small\itshape Table~\ref{tab:verification}, continued}\\
+\toprule
+\textbf{Check} & \textbf{Method} & \textbf{Result} & \textbf{Status} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{4}{r@{}}{\small\itshape Continued on the next page}\\
+\endfoot
+\bottomrule
+\endlastfoot
+Scoring rule & Five \code{node:test} unit tests: full marks, the wrong-flag step, time decay, hint cost and the 10\% floor & 5 of 5 tests pass & Pass \\
+Type safety & \code{pnpm typecheck} across all 10 workspaces & No type errors & Pass \\
+Code rules & \code{pnpm lint}, including the rule that stops the website importing the database & 0 errors, 1 warning in a UI hook & Pass \\
+End-to-end flag flow & Launch an instance, submit a wrong flag, unlock the first hint, submit the correct flag, then submit it again & Wrong flag scored 0. Correct flag scored 160 ($94 + 32 + 34$, no hint cost). The repeat returned already solved and wrote no attempt. & Pass \\
+Performance record & Rows written by the end-to-end run & 2 attempts, 4 telemetry events, instance marked solved; nothing left behind after the user was deleted & Pass \\
+Database & Query of the local PostgreSQL 16 database & 12 tables and 8 enumerated types; 7 challenges seeded, 3 with live labs & Pass \\
+Lab isolation by name & From inside the lab, look up the host name \code{db} & \code{ENOTFOUND} & Pass \\
+Lab isolation by address & From inside the lab, open TCP to the database container's IP on port 5432 & Connection opens & Open \\
+Lab isolation through the host & From inside the lab, open TCP to the database port published on the host & Connection opens & Open \\
+\end{longtable}
+\endgroup
+
+The score of 160 matches Equations~\eqref{eq:completion} to~\eqref{eq:total}. Completion is $\operatorname{round}(0.55 \times 170) = 94$. With one wrong flag the accuracy share is $\operatorname{round}(0.25 \times 170 \times 0.75) = 32$. The flag was submitted within seconds, so the time share was the full $0.20 \times 170 = 34$. The first hint in the ladder is free, so nothing was subtracted.
+
+\section{Discussion}
+
+The work so far shows several advantages. The implemented labs run in their own container, and grading happens on the server by comparing hashes, so a learner cannot tamper with a score. The scoring rule rewards the way a learner works, and completion alone does not decide it: accuracy, time and hint use all change the result, and the breakdown is shown to the learner. The code is organised so that each part can be tested on its own, which is what made the end-to-end check possible without a browser.
+
+There are also limitations. Only three challenges are live, covering two OWASP categories (A01 and A03). Gamification, adaptive selection and the instructor dashboard still run on sample data or are not yet built, so the platform does not yet adapt to anyone. No learner has used it yet, so there is no evidence about engagement or skill gain. And the lab isolation has the two open gaps described in Section~\ref{sec:open-issues}.

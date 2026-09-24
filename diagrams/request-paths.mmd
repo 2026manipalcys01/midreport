@@ -1,0 +1,23 @@
+sequenceDiagram
+  participant S as Student
+  participant W as Web app
+  participant L as Lab
+  participant D as PostgreSQL
+  participant M as ML worker
+
+  rect rgb(253, 244, 234)
+    Note over S,D: Synchronous path, the learner waits
+    S->>L: Exploit the target
+    L-->>S: Flag
+    S->>W: Submit flag
+    W->>W: Check user, hash, score
+    W->>D: Insert attempt, event
+    W-->>S: Score breakdown
+  end
+  rect rgb(246, 246, 246)
+    Note over W,M: Asynchronous path, planned
+    M->>D: Read attempts, events
+    M->>M: Risk, next challenge
+    M->>D: Upsert predictions
+    W->>D: Read predictions
+  end

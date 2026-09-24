@@ -1,0 +1,26 @@
+\chapter{Block diagram and flowcharts}
+\label{ch:flowcharts}
+
+\section{Block diagram}
+
+Figure~\ref{fig:block-diagram} shows the deployed blocks and the data that moves between them. The student's browser talks to two places: it attacks the vulnerable web app on the separate lab network, and it submits flags to the training platform. The platform provisions each lab instance, signs users in through Clerk, and writes every attempt to PostgreSQL. The instructor dashboard reads learner progress from the same database. The analytics and ML worker is planned: it will read attempts from the database and write predictions back, and it never sits between a learner and a grade.
+
+\diagramfig{block-diagram}{Block diagram}{The vulnerable lab runs on its own network, and the ML worker stays outside the request path. The dashboard is partly built and the ML worker is planned.}{fig:block-diagram}
+
+\section{Learner workflow}
+
+Figure~\ref{fig:learner-workflow} follows a learner from sign-in to feedback in four stages. Three properties of this flow matter for the design. Scoring is synchronous, so the learner waits only for the hash check and the score. Analytics run in the background, so the ML worker reads the record later and cannot change a grade. And every submission, right or wrong, joins the learner's record, which is what the planned adaptive and dashboard features will read.
+
+\diagramfig{learner-workflow}{Learner workflow}{From sign-in to feedback. Levels and badges are partly built, and choosing the next challenge adaptively is planned.}{fig:learner-workflow}
+
+\section{Challenge execution flowchart}
+
+Figure~\ref{fig:challenge-flowchart} gives the decisions inside one challenge. After launching an instance the learner works on the target and may unlock hints, each of which is logged with its cost. A submitted flag goes through two checks. If the learner has already solved the challenge, the platform says so and writes no new attempt, so a solved challenge cannot be farmed for points. Otherwise the platform compares the SHA-256 hash of the flag with the stored hash. A mismatch is logged as an incorrect attempt with a score of zero, and the learner returns to the target. A match is scored, logged with a \code{flag_submit} event and marks the instance solved.
+
+\diagramfig[0.8\textheight]{challenge-flowchart}{Challenge execution flowchart}{Wrong flags and hint unlocks loop back to the target, and every attempt is logged.}{fig:challenge-flowchart}
+
+\section{Grading and scoring pipeline}
+
+Figure~\ref{fig:scoring-pipeline} shows what happens inside the submit action once the flag has been hashed. For a correct flag the platform loads three inputs from the database: the number of earlier wrong flags on this instance, the seconds since the instance started, and the total cost of the hints unlocked on it. These go into the pure scoring function, together with the challenge's base points $B$ and time estimate $E$ in minutes. An incorrect flag skips the function and stores zeros. Both paths write one \code{attempts} row and one telemetry event. Section~\ref{sec:scoring} explains each term of the rule.
+
+\diagramfig[0.72\textheight]{scoring-pipeline}{Grading and scoring pipeline inside \code{submitFlag}}{The time term uses a budget of $1.5 \times 60 \times E = 90E$ seconds.}{fig:scoring-pipeline}

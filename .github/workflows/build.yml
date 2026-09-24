@@ -31,7 +31,7 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: synopsis-pdf
+          name: report-pdf
           path: build/*.pdf
 
       - name: Release

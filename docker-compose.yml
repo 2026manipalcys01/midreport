@@ -1,7 +1,7 @@
 services:
   latex:
     build: .
-    image: synopsis-builder
+    image: cys01-report-builder
     working_dir: /work
     volumes:
       - .:/work

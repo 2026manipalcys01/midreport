@@ -1,0 +1,15 @@
+flowchart TB
+  enter(["Sign in and finish onboarding"]) --> pick["Pick a challenge with a live lab"]
+  pick --> launch["Launch instance<br/>seed sent to the lab, flag hash stored"]
+  launch --> exploit["Exploit the target in the lab workspace"]
+  exploit --> stuck{"Stuck?"}
+  stuck -- "yes" --> hint["Unlock the next hint<br/>cost logged as hint_unlock"]
+  hint --> exploit
+  stuck -- "no" --> submit["Submit the recovered flag"]
+  submit --> solved{"Already<br/>solved?"}
+  solved -- "yes" --> again(["Report already solved<br/>no new attempt"])
+  solved -- "no" --> match{"sha256 of flag<br/>equals flag_hash?"}
+  match -- "no" --> wrong["Log incorrect attempt<br/>score 0"]
+  wrong --> exploit
+  match -- "yes" --> score["Score the attempt, log it with a<br/>flag_submit event, mark it solved"]
+  score --> show(["Show the score breakdown"])

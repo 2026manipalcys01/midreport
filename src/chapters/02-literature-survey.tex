@@ -1,0 +1,86 @@
+\chapter{Literature survey}
+\label{ch:literature}
+
+We surveyed work on hands-on security education, adaptive learning, the prediction of struggling students, gamification and its negative effects, and CTF platforms. We also read two recent studies of the attack classes that our first labs teach. Each source was read for three things: why it matters to this project, the tool or platform it used, and the gap it leaves open. Table~\ref{tab:litsurvey} summarises the survey, and the sections after it discuss each theme.
+
+\begingroup
+\tablefont
+\begin{longtable}{@{}P{2.6cm} P{4.8cm} P{2.6cm} P{4.6cm}@{}}
+\caption{Literature survey: focus, tools and the gap each study leaves open.}
+\label{tab:litsurvey}\\
+\toprule
+\textbf{Study} & \textbf{Focus and finding} & \textbf{Tool or platform} & \textbf{Gap left open} \\
+\midrule
+\endfirsthead
+\multicolumn{4}{@{}l}{\small\itshape Table~\ref{tab:litsurvey}, continued}\\
+\toprule
+\textbf{Study} & \textbf{Focus and finding} & \textbf{Tool or platform} & \textbf{Gap left open} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{4}{r@{}}{\small\itshape Continued on the next page}\\
+\endfoot
+\bottomrule
+\endlastfoot
+Švábenský et al.~\cite{Svabensky2020what} & Reviews a decade of security-education papers. Most studies measure what learners think of a course. & Literature review & Effectiveness is rarely measured by skill or behaviour. \\
+Chapman et al.~\cite{Chapman2014picoctf} & A game-based CTF competition that motivates novices and scales to many players. & PicoCTF & Fixed difficulty and outcome-only scoring, with no personalisation. \\
+Księżopolski et al.~\cite{Ksiezopolski2022teaching} & The closest design to ours: a hands-on web security course built on CTF challenges and the OWASP Top~10. & Custom CTF and LMS & No adaptive difficulty or ML, and the drawbacks of gamification are not addressed. \\
+Streicher and Smeddinck~\cite{Streicher2016adaptive} & A framework for personalised, adaptive serious games that pairs a learner model with adaptation rules. & Adaptive game engines & A general framework with no version for a web-security CTF class. \\
+Vykopal et al.~\cite{Vykopal2023smart} & Adaptive training that matches task difficulty to the learner, tested with 114 students. & KYPO adaptive engine & Needs heavy infrastructure and does not target browser-based web apps. \\
+Švábenský et al.~\cite{Svabensky2024detecting} & Predicts at-risk students from logged actions with machine learning (313 students). & ML on action logs & Detects that a student struggles but gives no tailored response, and is not specific to web security. \\
+Toda et al.~\cite{Toda2018dark} & Catalogues the negative effects of gamification. Leaderboards are the element most often linked to harm. & Review & Warns of harm but offers few concrete design fixes. \\
+Almeida et al.~\cite{Almeida2023negative} & A mapping of 87 papers finds that points, badges and competition can demotivate. & Systematic mapping & Confirms the problem and leaves solutions to designers. \\
+Karagiannis et al.~\cite{Karagiannis2020analysis} & Compares open-source CTF platforms and finds CTFd the best suited to teaching. & CTFd and others & Little scaffolding, no adaptive difficulty and weak assessment. \\
+OWASP~\cite{OwaspJuiceShop}; CTFd~\cite{CtfdDocs} & Mature building blocks: a vulnerable application and a CTF framework. & Juice Shop, CTFd & Standalone tools with no adaptivity or instructor analytics. \\
+Babaey and Ravindran~\cite{Babaey2025genxss} & An LLM generated 264 XSS payloads, and 80\% of the valid ones got past a rule-based web application firewall. & GPT-4o, ModSecurity with the OWASP CRS & Studies firewall defence, with nothing on teaching or learner support. \\
+Neupane~\cite{Neupane2025sqli} & A penetration test of a PHP and MySQL application finds SQL injection flaws and shows how to remove them. & OWASP ZAP, sqlmap, Nmap & One vulnerability class in one application, with no learning analytics. \\
+\end{longtable}
+\endgroup
+
+\section{Hands-on and gamified security education}
+
+Practical work teaches security well, and CTF is the main way to deliver it. A systematic review of a decade of security-education papers at the SIGCSE and ITiCSE conferences frames the field. It found that most studies measure what learners think of a course, and few measure what learners can do afterwards~\cite{Svabensky2020what}. CTF as a teaching tool goes back to game-based competitions such as PicoCTF, which motivated novices and scaled to many players~\cite{Chapman2014picoctf}. The published design closest to ours is a hands-on web security course built on CTF challenges and the OWASP Top~10~\cite{Ksiezopolski2022teaching}. These studies show that hands-on, gamified teaching works. None of them adapts the challenges to the learner.
+
+\section{Adaptive learning and personalisation}
+
+A single fixed sequence of challenges suits few learners. Streicher and Smeddinck describe personalised and adaptive serious games as a learner model paired with rules that change the game to suit that learner~\cite{Streicher2016adaptive}. In cybersecurity, Vykopal et al.\ built an adaptive training environment that matches task difficulty to the learner and tested it with 114 students~\cite{Vykopal2023smart}. Its adaptation is a transparent weighted rule over the learner's performance, with no machine learning, and our planned adaptation loop follows the same approach (Section~\ref{sec:future-adaptation}). The environment needs heavy infrastructure, and its tasks are not browser-based web applications, which is the setting of a web-security class.
+
+\section{Predicting who will struggle}
+
+Personalisation needs a signal: an estimate of how each learner is doing. Švábenský et al.\ used machine learning to detect unsuccessful students from their logged actions in two learning environments with 313 students~\cite{Svabensky2024detecting}. They argue that automated detection is needed because instructor time is limited. Their models detect that a student is struggling and leave the response to the teacher. A simple, interpretable model over features our platform already records (attempts, accuracy, time on task and hint use) can flag who needs help and also feed a recommender.
+
+\section{Gamification and its documented drawbacks}
+
+Two reviews document the harm directly. Toda et al.\ catalogue the negative effects of gamification in education. The element they most often link to harm is the leaderboard, and the most reported effect is lost motivation and performance~\cite{Toda2018dark}. Almeida et al.\ mapped 87 papers and found that points, badges, competition and leaderboards are the mechanics most often blamed for negative effects~\cite{Almeida2023negative}. The synopsis answered this with a peer-banded leaderboard. On 20~September~2026 the team dropped leaderboards altogether, so the platform ships points, levels and badges, and each learner sees only their own progress (Section~\ref{sec:m4}).
+
+\section{Attack techniques behind the first labs}
+
+Two recent studies look at the attack classes our first labs teach. Babaey and Ravindran used a large language model to generate 264 XSS payloads. Of these, 83\% were valid, and 80\% of the valid payloads got past ModSecurity running the OWASP Core Rule Set~\cite{Babaey2025genxss}. Filters built from fixed rules miss many generated attacks, so our XSS challenge teaches the fix at the source: contextual output encoding, an \code{httpOnly} cookie and a Content Security Policy. Neupane ran a penetration test on a PHP and MySQL application with OWASP ZAP, sqlmap and Nmap, found SQL injection flaws, and showed that input sanitisation and prepared statements prevent them~\cite{Neupane2025sqli}. That supports SQL injection as one of the first labs, and it shapes the lab's guidance, which points learners to parameterised queries.
+
+\section{Platforms, vulnerable applications and tools}
+
+Karagiannis et al.\ compared open-source CTF platforms and found CTFd the best suited to teaching~\cite{Karagiannis2020analysis}. Its documentation is our reference for scoring, hints and challenge dependencies~\cite{CtfdDocs}. OWASP Juice Shop is a mature vulnerable application that covers the OWASP Top~10~\cite{OwaspJuiceShop}, and we use it as a reference for challenge design. The lab itself is our own small service (Section~\ref{sec:m2}), because a target the team writes can be isolated, given a separate flag for each learner and graded on the server. None of these tools combines a vulnerable application, automated scoring, gamification designed around its harms, adaptive support and an instructor dashboard in one classroom platform.
+
+\section{Research gaps}
+\label{sec:gaps}
+
+The survey distils into six gaps. Table~\ref{tab:gaps} states each gap, how this project improves on existing work, the evidence behind the gap and the objective that closes it.
+
+\begin{table}[!htbp]
+\centering
+\caption{Gaps in existing work and how this project closes them.}
+\label{tab:gaps}
+\tablefont
+\begin{tabularx}{\linewidth}{@{}c P{4.2cm} L P{2.1cm} c@{}}
+\toprule
+\textbf{ID} & \textbf{Gap in existing work} & \textbf{How this project improves} & \textbf{Evidence} & \textbf{Obj.} \\
+\midrule
+G1 & Vulnerable apps are standalone targets. & One platform hosts the lab and also scores, gamifies and analyses attempts. & \cite{Karagiannis2020analysis,OwaspJuiceShop} & O1 \\
+G2 & Game elements are added without regard to harm. & Each game element is designed around the documented negative effects. & \cite{Toda2018dark,Almeida2023negative} & O2 \\
+G3 & Assessment checks only the flag, or is done by hand. & Completion, accuracy and time are scored automatically, which gives a model data to learn from. & \cite{Chapman2014picoctf,Svabensky2024detecting,Karagiannis2020analysis} & O3 \\
+G4 & Every learner follows the same fixed path. & Adaptive hints and a personalised next challenge. & \cite{Streicher2016adaptive,Vykopal2023smart} & O4 \\
+G5 & Instructors only see solve counts. & At-risk learners are predicted and shown on a dashboard. & \cite{Svabensky2024detecting} & O5 \\
+G6 & Effectiveness is rarely evaluated. & A pilot measures engagement and practical skill gain. & \cite{Svabensky2020what} & O6 \\
+\bottomrule
+\end{tabularx}
+\end{table}
